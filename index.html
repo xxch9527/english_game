@@ -11,20 +11,20 @@
 
         :root {
             /* 主题颜色 */
-            --color-bg-light: #FFF0F5; /* Blushing Bride */
-            --color-primary: #FF69B4; /* Hot Pink */
-            --color-secondary: #BA55D3; /* Medium Orchid */
-            --color-accent: #FFD700; /* Gold */
+            --color-bg-light: #FFF0F5; 
+            --color-primary: #FF69B4; 
+            --color-secondary: #BA55D3; 
+            --color-accent: #FFD700; 
             --color-text: #333;
             --color-white: #FFFFFF;
 
             /* 方块基础随机色板 */
-            --color-card-1: #FFB6C1; /* 粉色 Light Pink */
-            --color-card-2: #98FB98; /* 绿色 Pale Green */
-            --color-card-3: #DDA0DD; /* 紫色 Plum */
-            --color-card-4: #FFA07A; /* 橙色 Light Salmon */
-            --color-card-5: #DEB887; /* 棕色 Burly Wood */
-            --color-card-6: #ADD8E6; /* 蓝色 Light Blue */
+            --color-card-1: #FFB6C1; 
+            --color-card-2: #98FB98; 
+            --color-card-3: #DDA0DD; 
+            --color-card-4: #FFA07A; 
+            --color-card-5: #DEB887; 
+            --color-card-6: #ADD8E6; 
 
             /* 阴影和圆角 */
             --shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -275,6 +275,11 @@
             <button id="modalCloseButton">关闭</button>
         </div>
     </div>
+    
+    <!-- 音频元素：请确保这些音频文件（select.mp3, match.mp3, error.mp3）存在于和当前 HTML 文件相同的目录下 -->
+    <audio id="soundSelect" src="select.mp3" preload="auto"></audio>
+    <audio id="soundMatch" src="match.mp3" preload="auto"></audio>
+    <audio id="soundError" src="error.mp3" preload="auto"></audio>
 
     <script>
         // 定义常量颜色值
@@ -294,6 +299,12 @@
         const modalMessage = document.getElementById('modalMessage');
         const modalContinueBtn = document.getElementById('modalContinueButton');
         const modalCloseBtn = document.getElementById('modalCloseButton');
+        
+        // 音频元素引用
+        const soundSelect = document.getElementById('soundSelect');
+        const soundMatch = document.getElementById('soundMatch');
+        const soundError = document.getElementById('soundError');
+
 
         // 游戏状态变量
         let allWordPairs = [];          
@@ -314,41 +325,77 @@
         ];
 
         // -------------------
+        // 0. 音频控制函数
+        // -------------------
+        function playSound(audioElement) {
+            try {
+                // 重置播放位置到开头，确保即使频繁点击也能播放
+                audioElement.currentTime = 0; 
+                audioElement.play().catch(e => {
+                    // console.error("音频播放失败:", e);
+                    // 首次用户未交互时可能会失败，静默处理
+                });
+            } catch (e) {
+                // console.error("无法播放音频:", e);
+            }
+        }
+
+
+        // -------------------
         // 1. 本地存储 (LocalStorage)
         // -------------------
 
         function saveState() {
-            localStorage.setItem('gameTitle', titleEl.textContent);
-            localStorage.setItem('allWordPairs', JSON.stringify(allWordPairs));
+            try {
+                localStorage.setItem('gameTitle', titleEl.textContent);
+                localStorage.setItem('allWordPairs', JSON.stringify(allWordPairs));
+            } catch (e) {
+                console.error("保存状态失败:", e);
+            }
         }
 
         function loadState() {
-            const storedTitle = localStorage.getItem('gameTitle');
-            if (storedTitle) {
-                titleEl.textContent = storedTitle;
-            }
-
-            const storedWords = localStorage.getItem('allWordPairs');
-            if (storedWords) {
-                allWordPairs = JSON.parse(storedWords);
-                const maxPairs = allWordPairs.length;
-                
-                const maxSliderValue = Math.max(5, maxPairs);
-                sliderEl.max = maxSliderValue;
-                
-                if (maxPairs < 1) { // 词库至少需要 1 对
-                    startBtn.textContent = '开始游戏';
-                } else {
-                    startBtn.textContent = `开始 (重置词汇)`;
-                    currentPairsCount = parseInt(sliderEl.value);
-                    if (currentPairsCount > maxSliderValue) {
-                        currentPairsCount = maxSliderValue;
-                        sliderEl.value = maxSliderValue;
-                    }
-                    sliderValueEl.textContent = currentPairsCount;
+            try {
+                const storedTitle = localStorage.getItem('gameTitle');
+                if (storedTitle) {
+                    titleEl.textContent = storedTitle;
                 }
+
+                const storedWords = localStorage.getItem('allWordPairs');
+                if (storedWords) {
+                    allWordPairs = JSON.parse(storedWords);
+                    updateSliderMax();
+                }
+            } catch (e) {
+                console.error("加载状态失败:", e);
+                // 如果加载失败，重置词库
+                allWordPairs = []; 
+                updateSliderMax();
             }
         }
+        
+        function updateSliderMax() {
+            const maxPairs = allWordPairs.length;
+            
+            // 滑块最小值设为 1，最大值至少是 5，或等于词库最大值
+            const maxSliderValue = Math.max(5, maxPairs);
+            sliderEl.max = maxSliderValue;
+            
+            if (maxPairs < 1) { 
+                startBtn.textContent = '开始游戏 (请导入)';
+            } else {
+                startBtn.textContent = `重新开始 (重置词汇)`;
+            }
+
+            // 确保当前值不超过新的最大值
+            currentPairsCount = parseInt(sliderEl.value);
+            if (currentPairsCount > maxSliderValue) {
+                currentPairsCount = maxSliderValue;
+                sliderEl.value = maxSliderValue;
+            }
+            sliderValueEl.textContent = currentPairsCount;
+        }
+
         
         titleEl.addEventListener('input', saveState);
         titleEl.addEventListener('blur', saveState);
@@ -359,6 +406,8 @@
         // -------------------
 
         importBtn.addEventListener('click', () => {
+             // 确保点击按钮时有响应
+            playSound(soundSelect); 
             fileInput.click();
         });
 
@@ -378,42 +427,36 @@
         }
 
         function parseWordList(text) {
-            // 优化：使用 split(/\r?\n/) 兼容 Windows/Linux 换行，并确保过滤掉空白行
-            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            let newPairs = [];
+            try {
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+                let newPairs = [];
 
-            for (const line of lines) {
-                // 寻找第一个逗号作为单词和定义的分隔符
-                const firstCommaIndex = line.indexOf(','); 
-                
-                if (firstCommaIndex === -1) continue; 
+                for (const line of lines) {
+                    // 寻找第一个逗号作为单词和定义的分隔符
+                    const firstCommaIndex = line.indexOf(','); 
+                    
+                    if (firstCommaIndex === -1) continue; 
 
-                const word = line.substring(0, firstCommaIndex).trim();
-                const answer = line.substring(firstCommaIndex + 1).trim(); 
-                
-                if (word && answer) {
-                    newPairs.push({ word: word, answer: answer });
+                    const word = line.substring(0, firstCommaIndex).trim();
+                    const answer = line.substring(firstCommaIndex + 1).trim(); 
+                    
+                    if (word && answer) {
+                        newPairs.push({ word: word, answer: answer });
+                    }
                 }
-            }
 
-            if (newPairs.length > 0) {
-                allWordPairs = newPairs;
-                saveState();
-                
-                const maxPairs = allWordPairs.length;
-                sliderEl.max = Math.max(58, maxPairs); 
-                
-                currentPairsCount = parseInt(sliderEl.value);
-                if (currentPairsCount > maxPairs) {
-                    currentPairsCount = maxPairs;
-                    sliderEl.value = maxPairs;
+                if (newPairs.length > 0) {
+                    allWordPairs = newPairs;
+                    saveState();
+                    
+                    updateSliderMax(); // 更新滑块的最大值和文本
+                    showModal('导入成功', `成功导入 ${allWordPairs.length} 对词汇！最大可玩对数: ${allWordPairs.length} 对。`);
+                    startBtn.textContent = '重新开始 (重置词汇)';
+                } else {
+                    showModal('导入失败', '无法解析文件内容。请确保文件是简单的 CSV/TXT 格式，且每行仅使用一个逗号分隔“单词”和“答案”。');
                 }
-                sliderValueEl.textContent = currentPairsCount;
-
-                showModal('导入成功', `成功导入 ${allWordPairs.length} 对词汇！最大可玩对数: ${maxPairs} 对。`);
-                startBtn.textContent = '重新开始 (重置词汇)';
-            } else {
-                showModal('导入失败', '无法解析文件内容。请确保文件是简单的 CSV/TXT 格式，且每行仅使用一个逗号分隔“单词”和“答案”。');
+            } catch (e) {
+                 showModal('导入错误', `处理文件时发生错误: ${e.message}`);
             }
         }
 
@@ -427,6 +470,7 @@
         });
         
         startBtn.addEventListener('click', () => {
+            playSound(soundSelect);
             const resetVocabulary = startBtn.textContent.includes('(重置词汇)');
             startGame(resetVocabulary);
         });
@@ -455,9 +499,8 @@
             let pairsToUse = Math.min(currentPairsCount, remainingPairsBefore);
             
             if (pairsToUse < 1) {
-                // 如果是继续挑战时词汇用完了
+                // 如果是继续挑战时词汇用完了，自动重置并开始新一轮
                 if (wordIndexOffset > 0) {
-                     // 自动重置并开始新一轮
                      shuffleArray(allWordPairs);
                      wordIndexOffset = 0;
                      pairsToUse = Math.min(currentPairsCount, allWordPairs.length);
@@ -506,7 +549,6 @@
         // -------------------
         // 4. 计时器
         // -------------------
-        // ... (计时器逻辑保持不变) ...
 
         function startTimer() {
             startTime = Date.now();
@@ -528,7 +570,7 @@
 
 
         // -------------------
-        // 5. 渲染和交互 (保持不变)
+        // 5. 渲染和交互
         // -------------------
         
         function getRandomColor() {
@@ -560,6 +602,9 @@
                 return;
             }
             
+            // 播放点击音效
+            playSound(soundSelect); 
+
             clickedBlock.classList.add('selected');
             selectedBlocks.push(clickedBlock);
             
@@ -568,6 +613,9 @@
                 const [block1, block2] = selectedBlocks;
                 
                 if (block1.dataset.id === block2.dataset.id) {
+                    // 匹配成功
+                    playSound(soundMatch); // 播放“咻”的成功音效
+
                     matchedCount++;
                     
                     setTimeout(() => {
@@ -585,6 +633,9 @@
                     }, 500);
                     
                 } else {
+                    // 匹配失败
+                    playSound(soundError); // 播放失败音效
+                    
                     setTimeout(() => {
                         block1.classList.add('error-flash');
                         block2.classList.add('error-flash');
@@ -605,10 +656,8 @@
             
             const totalPairs = currentActiveWords.length / 2;
             
-            // 确保计算出的剩余词对是准确的，因为 wordIndexOffset 已经在 startGame 中更新了
             let remainingPairs = allWordPairs.length - wordIndexOffset;
 
-            // **修正逻辑：如果计算出剩余 -1，说明是边界条件错误，我们将其修正为 0**
             if (remainingPairs < 0) {
                  remainingPairs = 0;
             }
@@ -617,7 +666,7 @@
             
             modalMessage.innerHTML = `您成功消除了 ${totalPairs} 对单词，总耗时：<span style="color:${HOT_PINK};">${elapsedSeconds} 秒</span>。<br><br>词库中还剩 ${remainingPairs} 对单词。`;
             
-            const showContinue = remainingPairs > 0; // 严格大于 0 才显示继续
+            const showContinue = remainingPairs > 0; 
 
             modalContinueBtn.style.display = showContinue ? 'inline-block' : 'none';
             modalOverlay.style.display = 'block';
@@ -653,6 +702,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadState();
             
+            // 确保滑块在加载状态后再次更新
             currentPairsCount = parseInt(sliderEl.value);
             sliderValueEl.textContent = currentPairsCount;
 
